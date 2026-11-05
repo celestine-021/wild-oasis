@@ -10,18 +10,25 @@ import cabin008 from "./cabin-008.jpg";
 import defaultUser from "./default-user.jpg";
 
 const initialRooms = [
-  { id: "cabin-001", name: "The Fernwood", type: "Forest cabin", capacity: 2, price: 180, image: cabin001, description: "A tucked-away hideout made for slow mornings and long forest walks.", features: ["King bed", "Forest view", "Private deck"] },
-  { id: "cabin-002", name: "The Evergreen", type: "Forest cabin", capacity: 4, price: 245, image: cabin002, description: "Warm timber, a crackling fireplace, and space to bring the whole family.", features: ["2 bedrooms", "Fireplace", "Kitchenette"] },
-  { id: "cabin-003", name: "The Lookout", type: "Mountain lodge", capacity: 2, price: 220, image: cabin003, description: "Wake up above the trees with a view that makes the early start worthwhile.", features: ["King bed", "Mountain view", "Hot tub"] },
-  { id: "cabin-004", name: "The Wildflower", type: "Garden cottage", capacity: 3, price: 195, image: cabin004, description: "A bright little cottage surrounded by a meadow that changes with the seasons.", features: ["Queen bed", "Garden view", "Outdoor shower"] },
-  { id: "cabin-005", name: "The Hideaway", type: "Forest cabin", capacity: 4, price: 265, image: cabin005, description: "A secluded retreat with the comforts of home and room to truly unwind.", features: ["2 bedrooms", "Wood stove", "Private deck"] },
-  { id: "cabin-006", name: "The Aspen", type: "Garden cottage", capacity: 2, price: 175, image: cabin006, description: "A calm, light-filled space for two, just a short stroll from the trails.", features: ["Queen bed", "Garden view", "Breakfast nook"] },
-  { id: "cabin-007", name: "The Ridge", type: "Mountain lodge", capacity: 5, price: 310, image: cabin007, description: "Room for everyone, with big windows looking out across the valley.", features: ["3 bedrooms", "Mountain view", "Fireplace"] },
-  { id: "cabin-008", name: "The Fern", type: "Forest cabin", capacity: 3, price: 205, image: cabin008, description: "A cozy base camp for forest adventures and quiet evenings in.", features: ["Queen bed", "Forest view", "Private deck"] },
+  { id: "cabin-001", name: "The Fernwood", type: "Forest cabin", capacity: 2, price: 23400, image: cabin001, description: "A tucked-away hideout made for slow mornings and long forest walks.", features: ["King bed", "Forest view", "Private deck"] },
+  { id: "cabin-002", name: "The Evergreen", type: "Forest cabin", capacity: 4, price: 31850, image: cabin002, description: "Warm timber, a crackling fireplace, and space to bring the whole family.", features: ["2 bedrooms", "Fireplace", "Kitchenette"] },
+  { id: "cabin-003", name: "The Lookout", type: "Mountain lodge", capacity: 2, price: 28600, image: cabin003, description: "Wake up above the trees with a view that makes the early start worthwhile.", features: ["King bed", "Mountain view", "Hot tub"] },
+  { id: "cabin-004", name: "The Wildflower", type: "Garden cottage", capacity: 3, price: 25350, image: cabin004, description: "A bright little cottage surrounded by a meadow that changes with the seasons.", features: ["Queen bed", "Garden view", "Outdoor shower"] },
+  { id: "cabin-005", name: "The Hideaway", type: "Forest cabin", capacity: 4, price: 34450, image: cabin005, description: "A secluded retreat with the comforts of home and room to truly unwind.", features: ["2 bedrooms", "Wood stove", "Private deck"] },
+  { id: "cabin-006", name: "The Aspen", type: "Garden cottage", capacity: 2, price: 22750, image: cabin006, description: "A calm, light-filled space for two, just a short stroll from the trails.", features: ["Queen bed", "Garden view", "Breakfast nook"] },
+  { id: "cabin-007", name: "The Ridge", type: "Mountain lodge", capacity: 5, price: 40300, image: cabin007, description: "Room for everyone, with big windows looking out across the valley.", features: ["3 bedrooms", "Mountain view", "Fireplace"] },
+  { id: "cabin-008", name: "The Fern", type: "Forest cabin", capacity: 3, price: 26650, image: cabin008, description: "A cozy base camp for forest adventures and quiet evenings in.", features: ["Queen bed", "Forest view", "Private deck"] },
 ];
 
 const ADMIN_EMAIL = "admin@wildoasis.com";
 const ADMIN_PASSWORD = "admin123";
+const LEGACY_CURRENCY_RATE = 130;
+const CURRENCY_STORAGE_VERSION = "kes-v2";
+const currencyFormatter = new Intl.NumberFormat("en-KE", {
+  style: "currency",
+  currency: "KES",
+  maximumFractionDigits: 0,
+});
 const roomPhotos = [cabin001, cabin002, cabin003, cabin004, cabin005, cabin006, cabin007, cabin008];
 
 function readStorage(key, fallback) {
@@ -31,6 +38,30 @@ function readStorage(key, fallback) {
   } catch {
     return fallback;
   }
+}
+
+function formatCurrency(amount) {
+  return currencyFormatter.format(Number(amount) || 0);
+}
+
+function migrateStoredCurrency() {
+  if (localStorage.getItem("wild-oasis-currency-version") === CURRENCY_STORAGE_VERSION) return;
+
+  const storedRooms = readStorage("wild-oasis-rooms", null);
+  if (storedRooms) {
+    localStorage.setItem("wild-oasis-rooms", JSON.stringify(
+      storedRooms.map((room) => ({ ...room, price: Math.round(Number(room.price) * LEGACY_CURRENCY_RATE) }))
+    ));
+  }
+
+  const storedBookings = readStorage("wild-oasis-bookings", null);
+  if (storedBookings) {
+    localStorage.setItem("wild-oasis-bookings", JSON.stringify(
+      storedBookings.map((booking) => ({ ...booking, total: Math.round(Number(booking.total) * LEGACY_CURRENCY_RATE) }))
+    ));
+  }
+
+  localStorage.setItem("wild-oasis-currency-version", CURRENCY_STORAGE_VERSION);
 }
 
 function localDate(date) {
@@ -66,7 +97,10 @@ function isRoomAvailable(roomId, checkIn, checkOut, bookings) {
 
 function App() {
   const today = localDate(new Date());
-  const [rooms, setRooms] = useState(() => readStorage("wild-oasis-rooms", initialRooms));
+  const [rooms, setRooms] = useState(() => {
+    migrateStoredCurrency();
+    return readStorage("wild-oasis-rooms", initialRooms);
+  });
   const [users, setUsers] = useState(() => readStorage("wild-oasis-users", []));
   const [bookings, setBookings] = useState(() => readStorage("wild-oasis-bookings", []));
   const [user, setUser] = useState(() => readStorage("wild-oasis-session", null));
@@ -308,7 +342,7 @@ function RoomCard({ room, onBook }) {
         <p className="room-description">{room.description}</p>
         <div className="feature-list">{room.features.slice(0, 3).map((feature) => <span key={feature}>{feature}</span>)}</div>
         <div className="room-card-footer">
-          <div className="price"><strong>${Number(room.price).toLocaleString()}</strong><span> / night</span></div>
+          <div className="price"><strong>{formatCurrency(room.price)}</strong><span> / night</span></div>
           <button className="button button-dark room-book-button" onClick={onBook}>Choose stay <span aria-hidden="true">→</span></button>
         </div>
       </div>
@@ -377,7 +411,7 @@ function MyStays({ bookings, rooms, onCancel, onExplore }) {
         return <article className="booking-card" key={booking.id}>
           <img src={room?.image || roomPhotos[0]} alt="" />
           <div className="booking-main"><span className={`status-pill status-${booking.status.toLowerCase().replace(" ", "-")}`}>{booking.status}</span><h3>{booking.roomName}</h3><p>{formatDate(booking.checkIn)} – {formatDate(booking.checkOut)} <span>·</span> {nightsBetween(booking.checkIn, booking.checkOut)} nights</p><p className="booking-detail">{booking.guests} {booking.guests === 1 ? "guest" : "guests"} · Confirmation {booking.id.slice(-6).toUpperCase()}</p></div>
-          <div className="booking-price"><span>Total</span><strong>${Number(booking.total).toLocaleString()}</strong>{booking.status === "Confirmed" && <button className="text-button cancel-link" onClick={() => setConfirmId(booking.id)}>Cancel stay</button>}</div>
+          <div className="booking-price"><span>Total</span><strong>{formatCurrency(booking.total)}</strong>{booking.status === "Confirmed" && <button className="text-button cancel-link" onClick={() => setConfirmId(booking.id)}>Cancel stay</button>}</div>
           {confirmId === booking.id && <div className="confirm-overlay"><div className="confirm-box"><h4>Cancel this stay?</h4><p>This reservation will be released for other guests.</p><div><button className="button button-outline button-small" onClick={() => setConfirmId("")}>Keep it</button><button className="button button-dark button-small" onClick={() => { onCancel(booking.id); setConfirmId(""); }}>Yes, cancel</button></div></div></div>}
         </article>;
       })}</div> : <div className="empty-state booking-empty"><span className="empty-icon">⌂</span><h3>No stays booked yet</h3><p>Your next favorite getaway is waiting to be found.</p><button className="button button-dark" onClick={onExplore}>Explore the stays <span aria-hidden="true">→</span></button></div>}
@@ -407,12 +441,12 @@ function AdminDashboard({ bookings, rooms, onStatus, onAddRoom, onDeleteRoom }) 
       <div className="stats-grid">
         <div className="stat-card"><span className="stat-label">ACTIVE RESERVATIONS</span><strong>{activeBookings.length}</strong><span className="stat-caption">Across all your stays</span></div>
         <div className="stat-card"><span className="stat-label">ROOMS & STAYS</span><strong>{rooms.length}</strong><span className="stat-caption">Places to unwind</span></div>
-        <div className="stat-card"><span className="stat-label">BOOKED REVENUE</span><strong>${revenue.toLocaleString()}</strong><span className="stat-caption">From active reservations</span></div>
+        <div className="stat-card"><span className="stat-label">BOOKED REVENUE</span><strong>{formatCurrency(revenue)}</strong><span className="stat-caption">From active reservations</span></div>
       </div>
       <div className="admin-section-heading"><div><h2>Reservations</h2><p>Keep an eye on upcoming guest stays.</p></div></div>
       <div className="admin-table-wrap">
         {bookings.length ? <table className="admin-table"><thead><tr><th>GUEST</th><th>STAY</th><th>DATES</th><th>GUESTS</th><th>TOTAL</th><th>STATUS</th><th>UPDATE</th></tr></thead><tbody>
-          {bookings.map((booking) => <tr key={booking.id}><td><strong>{booking.guestName}</strong><span className="table-subtext">{booking.email}</span></td><td>{booking.roomName}</td><td>{formatDate(booking.checkIn)}<span className="table-subtext">to {formatDate(booking.checkOut)}</span></td><td>{booking.guests}</td><td>${Number(booking.total).toLocaleString()}</td><td><span className={`status-pill status-${booking.status.toLowerCase().replace(" ", "-")}`}>{booking.status}</span></td><td><select aria-label={`Update status for ${booking.guestName}`} value={booking.status} onChange={(event) => onStatus(booking.id, event.target.value)}><option>Confirmed</option><option>Checked out</option><option>Cancelled</option></select></td></tr>)}
+          {bookings.map((booking) => <tr key={booking.id}><td><strong>{booking.guestName}</strong><span className="table-subtext">{booking.email}</span></td><td>{booking.roomName}</td><td>{formatDate(booking.checkIn)}<span className="table-subtext">to {formatDate(booking.checkOut)}</span></td><td>{booking.guests}</td><td>{formatCurrency(booking.total)}</td><td><span className={`status-pill status-${booking.status.toLowerCase().replace(" ", "-")}`}>{booking.status}</span></td><td><select aria-label={`Update status for ${booking.guestName}`} value={booking.status} onChange={(event) => onStatus(booking.id, event.target.value)}><option>Confirmed</option><option>Checked out</option><option>Cancelled</option></select></td></tr>)}
         </tbody></table> : <p className="table-empty">No reservations just yet. They’ll show up here when guests book.</p>}
       </div>
       <div className="admin-section-heading rooms-heading"><div><h2>Your stays</h2><p>Add a new place to make someone’s getaway.</p></div><button className="button button-dark" onClick={() => setShowForm((current) => !current)}>{showForm ? "Close form" : "+ Add a stay"}</button></div>
@@ -420,11 +454,11 @@ function AdminDashboard({ bookings, rooms, onStatus, onAddRoom, onDeleteRoom }) 
         <label>Stay name<input required value={newRoom.name} onChange={(event) => setNewRoom({ ...newRoom, name: event.target.value })} placeholder="The Mosswood" /></label>
         <label>Stay type<select value={newRoom.type} onChange={(event) => setNewRoom({ ...newRoom, type: event.target.value })}><option>Forest cabin</option><option>Mountain lodge</option><option>Garden cottage</option></select></label>
         <label>Guests<select value={newRoom.capacity} onChange={(event) => setNewRoom({ ...newRoom, capacity: event.target.value })}>{[1, 2, 3, 4, 5].map((count) => <option key={count} value={count}>{count}</option>)}</select></label>
-        <label>Price per night ($)<input type="number" min="1" required value={newRoom.price} onChange={(event) => setNewRoom({ ...newRoom, price: event.target.value })} placeholder="200" /></label>
+        <label>Price per night (KSh)<input type="number" min="1" required value={newRoom.price} onChange={(event) => setNewRoom({ ...newRoom, price: event.target.value })} placeholder="26000" /></label>
         <label className="room-description-field">A few words about it<input required value={newRoom.description} onChange={(event) => setNewRoom({ ...newRoom, description: event.target.value })} placeholder="A quiet cabin tucked among the pines." /></label>
         <button className="button button-dark" type="submit">Add to stays <span aria-hidden="true">→</span></button>
       </form>}
-      <div className="manage-room-list">{rooms.map((room) => <div className="manage-room" key={room.id}><img src={room.image} alt="" /><div><strong>{room.name}</strong><span>{room.type} · Up to {room.capacity} · ${Number(room.price).toLocaleString()} / night</span></div><button className="text-button remove-room" onClick={() => onDeleteRoom(room.id)}>Remove</button></div>)}</div>
+      <div className="manage-room-list">{rooms.map((room) => <div className="manage-room" key={room.id}><img src={room.image} alt="" /><div><strong>{room.name}</strong><span>{room.type} · Up to {room.capacity} · {formatCurrency(room.price)} / night</span></div><button className="text-button remove-room" onClick={() => onDeleteRoom(room.id)}>Remove</button></div>)}</div>
     </section>
   );
 }
